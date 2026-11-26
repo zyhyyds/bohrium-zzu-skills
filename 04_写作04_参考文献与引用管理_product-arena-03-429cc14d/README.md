@@ -39,7 +39,7 @@ python scripts/solve.py --input ./sample_input --output ./sample_output
 ## 确定性产物说明
 运行 `scripts/solve.py` 后，输出目录会多出三个文件：
 - `verification.json`：脚本可判定的检查项（passed=true/false/null）。
-- `comparison.json`：对照维度骨架，须由 Agent 用本次真实产物回填，baseline 未观察到就保持 `not observed`。
+- `comparison.json`：脚本从真实检查项与结果字段自动生成的对照证据初稿（auto_draft）；Agent 逐项确认后把 status 改为 confirmed，baseline 未观察到就保持 `not observed`。
 - `audit.json`：结果结构与锚点的审计结论；`passed=false` 时不得把 result.json 标为 success。
 
 ## 评分点对照
