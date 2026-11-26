@@ -1,2 +1,2 @@
-TODO_FILL_PUBLIC_GITHUB_URL
-# 第二行可选：本题作品相对路径
+https://github.com/zyhyyds/bohrium-zzu-skills
+14_阅读14_Nanopublication_product-arena-09-0e8befd4
