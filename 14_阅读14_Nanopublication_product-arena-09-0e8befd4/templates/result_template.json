@@ -1,0 +1,39 @@
+{
+  "case_id": "<从 case.json 原样读取>",
+  "skill_id": "<本目录 SKILL.md 的 name>",
+  "status": "partial",
+  "generated_at": "<运行时间，由脚本生成>",
+  "result": {},
+  "evidence": [
+    {
+      "claim": "关键结论",
+      "locator": {
+        "file": "source.txt",
+        "line": 12,
+        "section_id": "SEC002"
+      },
+      "quote": "原文短引",
+      "source_id": "source",
+      "strength": "direct"
+    }
+  ],
+  "sources": [
+    {
+      "path": "source.txt",
+      "sha256": "",
+      "role": ""
+    }
+  ],
+  "uncertainty": [
+    "未报告或无法判断的项"
+  ],
+  "changes": [
+    {
+      "before": "",
+      "after": "",
+      "type": "",
+      "reason": ""
+    }
+  ],
+  "needs_human_confirmation": []
+}

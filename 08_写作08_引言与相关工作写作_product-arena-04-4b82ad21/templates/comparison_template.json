@@ -1,0 +1,44 @@
+{
+  "skill_id": "08_写作08_引言与相关工作写作_product-arena-04-4b82ad21",
+  "case_id": "<从 case.json 原样读取>",
+  "purpose": "使用增益的可核验证据：同一输入下本 Skill 侧的可观察行为与产出。",
+  "axes": [
+    {
+      "axis": "转述准确率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "分组合理性",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "空白推导成立率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "贡献—证据对齐率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "引用覆盖率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "成稿返工轮次",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    }
+  ],
+  "instruction": "不得编造基础 Agent 的结果或分数；平台会独立运行基础 Agent 作对照。"
+}

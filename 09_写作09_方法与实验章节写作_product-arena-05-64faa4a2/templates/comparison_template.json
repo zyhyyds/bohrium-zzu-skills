@@ -1,0 +1,44 @@
+{
+  "skill_id": "09_写作09_方法与实验章节写作_product-arena-05-64faa4a2",
+  "case_id": "<从 case.json 原样读取>",
+  "purpose": "使用增益的可核验证据：同一输入下本 Skill 侧的可观察行为与产出。",
+  "axes": [
+    {
+      "axis": "六类要素齐全度",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "参数来源可追溯率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "条件一致性",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "复现清单可执行率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "缺口追问覆盖率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "补写返工轮次",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    }
+  ],
+  "instruction": "不得编造基础 Agent 的结果或分数；平台会独立运行基础 Agent 作对照。"
+}

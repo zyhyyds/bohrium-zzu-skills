@@ -1,0 +1,7 @@
+# 复制到公开仓库根目录并改名为 .gitignore
+__pycache__/
+*.py[cod]
+_analysis/
+selftest/
+_tmp*
+*.log

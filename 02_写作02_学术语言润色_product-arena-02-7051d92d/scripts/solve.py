@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+import re
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from evidence_core import (ResultBuilder, common_args, invariant_report, load_case,
+                           locate, read_text, sha256_file, text_files, write_result)
+
+from evidence_core import finalize_with_checks  # v2 audit gate
+
+SKILL_ID = "writing02-language-polish"
+ISSUES = [
+    ("wordy", re.compile(r"\bin order to\b|\bdue to the fact that\b|\bfor the purpose of\b", re.I), "改用 to / because / for，减少冗余"),
+    ("vague", re.compile(r"\b(very|quite|extremely|really|a lot of)\b", re.I), "替换为可核验的定量或限定表达"),
+    ("overclaim", re.compile(r"\b(obviously|clearly|certainly|proves|definitely)\b", re.I), "降低断言强度，保留原文限定"),
+    ("chinese_english", re.compile(r"\bmake\s+\w+\s+to\b|\bas we all know\b|\bwith the development of\b", re.I), "按目标语域重写，避免直译腔"),
+    ("article", re.compile(r"\b(the|a|an)\s+(the|a|an)\b", re.I), "检查冠词重复"),
+]
+
+AXES = ["语法硬错误修正率", "术语一致率", "限定强度守恒率", "数据/引用/图表指向守恒率", "逐句说明完整率", "返修轮次"]
+
+
+def main():
+    args = common_args().parse_args()
+    if args.validate:
+        from evidence_core import validate_output
+        validate_output(args.output, SKILL_ID, AXES)
+        return
+    case, task, files = load_case(args.input)
+    b = ResultBuilder(case, SKILL_ID)
+    texts = text_files(files)
+    worklist = []
+    for p in texts:
+        text = read_text(p)
+        b.add_source(p, sha256_file(p), "manuscript")
+        b.add_evidence(claim="润色输入来源", locator={"file": p.name}, quote=text[:250], source_id=p.name)
+        for kind, pat, rule in ISSUES:
+            for m in pat.finditer(text):
+                s = max(0, m.start() - 80)
+                e = min(len(text), m.end() + 80)
+                sent = text[s:e].replace("\n", " ")
+                worklist.append({"file": p.name, "issue_type": kind, "matched": m.group(0),
+                                 "sentence": sent, "rule": rule, "locator": locate(text, m.group(0)) or {},
+                                 "revised": "", "reason": "", "status": "pending"})
+    source = "\n\n".join(read_text(p) for p in texts)
+    target = ""
+    for w in worklist:
+        if w["revised"]:
+            target += w["revised"] + "\n"
+    b.set("polish_worklist", worklist)
+    b.set("invariant_checks", invariant_report(source, target) if target else {"note": "待 Agent 生成润色稿后回填自动核对。"})
+    b.set("rules", ["最小编辑：不整段重写", "限定强度、因果/相关、否定范围、数字单位、引用编号、图表指向必须守恒",
+                    "每处修改给出原文、改文、类型、理由", "术语表驱动全篇回扫"])
+    if not worklist:
+        b.add_uncertainty("未检出预设语言问题模式；仍需人工通读术语一致性与语域贴合度。")
+    b.add_confirm("逐句核对改写是否改变限定强度或专业含义。")
+    b.add_check("worklist_generated", bool(worklist), "检出 %d 处候选问题" % len(worklist))
+    b.add_check("invariant_runtime", "numbers_missing" not in (b.data.get("invariant_checks") or {}),
+                "守恒检查：数字缺失必须为零或在 uncertainty 中解释")
+    b.add_check("changes_documented", None,
+                "每处修改须含 before/after/type/reason；不认同脚本候选也要写理由")
+    finalize_with_checks(b, args, files, SKILL_ID, AXES)
+    print("wrote", Path(args.output) / "result.json")
+
+if __name__ == "__main__":
+    main()

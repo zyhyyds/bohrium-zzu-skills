@@ -1,0 +1,44 @@
+{
+  "skill_id": "15_阅读15_文献知识图谱构建_product-arena-10-760d1a0b",
+  "case_id": "<从 case.json 原样读取>",
+  "purpose": "使用增益的可核验证据：同一输入下本 Skill 侧的可观察行为与产出。",
+  "axes": [
+    {
+      "axis": "实体真实出现率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "关系类型/方向准确率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "别名归一正确率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "节点与边证据覆盖率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "查询结果可复核率",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    },
+    {
+      "axis": "跨篇整理耗时",
+      "baseline_observation": "not observed",
+      "skill_evidence": "待回填：指向 result.json 字段或 evidence locator",
+      "status": "pending"
+    }
+  ],
+  "instruction": "不得编造基础 Agent 的结果或分数；平台会独立运行基础 Agent 作对照。"
+}
