@@ -1,1 +1,21 @@
-IyDor4TliIbngrnlr7nnhafkuI7oh6rmn6XooajvvZwwMl/lhpnkvZwwMl/lrabmnK/or63oqIDmtqboibJfcHJvZHVjdC1hcmVuYS0wMi03MDUxZDkyZA0KDQrlrpjmlrnor4TliIbnu7TluqbvvJrlrp7pmYXmlYjmnpwgNDDvvIjlrozmiJDluqYgMTUgLyDmraPnoa7mgKcgMTUgLyDlrozmlbTmgKcgNSAvIOWPr+aguOmqjOaApyA177yJ44CB5L2/55So5aKe55uKIDI177yI6LSo6YePIDE1IC8g5pWI546HIDUgLyDlj6/pqozor4HmgKcgNe+8ieOAgeWIm+aWsOWinuebiiAxNeOAgeWPr+mdoOS9k+mqjCAxMOOAgeeUn+aAgei0oeeMriAxMO+8m0dpdEh1YiDlhazlvIDpk77mjqXlj6bliqDmnIDpq5ggNSDliIbjgIINCg0KIyMg5pys6aKY5a+554Wn57u05bqmDQoNCi0g6K+t5rOV56Gs6ZSZ6K+v5L+u5q2j546HDQotIOacr+ivreS4gOiHtOeOhw0KLSDpmZDlrprlvLrluqblrojmgZLnjocNCi0g5pWw5o2uL+W8leeUqC/lm77ooajmjIflkJHlrojmgZLnjocNCi0g6YCQ5Y+l6K+05piO5a6M5pW0546HDQotIOi/lOS/rui9ruasoQ0KDQojIyDoh6rmn6XmraXpqqQNCg0KMS4g6L+Q6KGMIGBweXRob24gc2NyaXB0cy9zb2x2ZS5weSAtLWlucHV0IC9pbnB1dCAtLW91dHB1dCAvYXBwL291dHB1dGDjgIINCjIuIOivuyBgYXVkaXQuanNvbmDvvJrmnIkgYGlzc3Vlc2Ag5oiWIGBmYWlsZWRfY2hlY2tzYCDml7blhYjkv67lpI3vvIzkuI3lvpfnm7TmjqXmoIcgc3VjY2Vzc+OAgg0KMy4g6K+7IGB2ZXJpZmljYXRpb24uanNvbmDvvJpwZW5kaW5nIOmhuemhu+eUsSBBZ2VudCDmjInnnJ/lrp7mnZDmlpnlm57loavmiJblhpnlhaUgdW5jZXJ0YWludHnjgIINCjQuIOivuyBgY29tcGFyaXNvbi5qc29uYO+8muehruiupOiEmuacrOiHquWKqOeUn+aIkOeahCBhdXRvX2RyYWZ0IOivgeaNru+8jOehruiupOWQjuaKiiBzdGF0dXMg5pS55Li6IGNvbmZpcm1lZO+8m25vdF9vYnNlcnZhYmxlIOmhueS6uuW3peihpeWFheaIluS/neeVmSBub3Qgb2JzZXJ2ZWTvvIxiYXNlbGluZSDkuIDlvovkv53mjIEgbm90IG9ic2VydmVk44CCDQo1LiDmoLjlr7kgYHJlc3VsdC5qc29uYO+8mm91dHB1dF9jb250cmFjdCDlhajlrZfmrrXjgIFjYXNlX2lk44CBZXZpZGVuY2Ug6ZSa54K544CBc3RhdHVz44CCDQo2LiDmoLjlr7kgYGNoYW5nZV9sb2cubWRg77ya5q+P5aSE5pS55Yqo5pyJ5Y6f5paH44CB5pS55paHL+e7iOWAvOOAgeexu+Wei+S4jueQhueUseOAgg0K
+# 评分点对照与自查表｜02_写作02_学术语言润色_product-arena-02-7051d92d
+
+官方评分维度：实际效果 40（完成度 15 / 正确性 15 / 完整性 5 / 可核验性 5）、使用增益 25（质量 15 / 效率 5 / 可验证性 5）、创新增益 15、可靠体验 10、生态贡献 10；GitHub 公开链接另加最高 5 分。
+
+## 本题对照维度
+
+- 语法硬错误修正率
+- 术语一致率
+- 限定强度守恒率
+- 数据/引用/图表指向守恒率
+- 逐句说明完整率
+- 返修轮次
+
+## 自查步骤
+
+1. 运行 `python scripts/solve.py --input /input --output /app/output`。
+2. 读 `audit.json`：有 `issues` 或 `failed_checks` 时先修复，不得直接标 success。
+3. 读 `verification.json`：pending 项须由 Agent 按真实材料回填或写入 uncertainty。
+4. 读 `comparison.json`：确认脚本自动生成的 auto_draft 证据，确认后把 status 改为 confirmed；not_observable 项人工补充或保留 not observed，baseline 一律保持 not observed。
+5. 核对 `result.json`：output_contract 全字段、case_id、evidence 锚点、status。
+6. 核对 `change_log.md`：每处改动有原文、改文/终值、类型与理由。
