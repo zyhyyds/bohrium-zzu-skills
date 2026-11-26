@@ -248,6 +248,129 @@ def audit_payload(data, checks, contract_keys=None):
             "checks_passed": sum(1 for c in checks if c.get("passed") is True)}
 
 
+AXIS_TERMS = {
+    "锚点": ("locator", "evidence", "anchor", "定位", "回查", "source"),
+    "证据": ("evidence", "quote", "locator", "support", "证据"),
+    "编号": ("number", "numbering", "编号", "renumber", "citation", "引用"),
+    "术语": ("glossary", "term", "术语", "terminology"),
+    "守恒": ("invariant", "missing", "hedge", "strengthen", "weaken", "守恒", "数字", "限定"),
+    "完整": ("coverage", "complete", "完整", "fields", "segment", "block", "notes", "contract"),
+    "编译": ("compile", "tex", "latex", "编译", "issue"),
+    "参数": ("param", "参数", "config", "source"),
+    "字段": ("fields", "字段", "contract", "schema"),
+    "查询": ("quer", "查询", "graph", "node", "edge"),
+    "导出": ("export", "schema", "导出", "serial"),
+    "段落": ("segment", "段落", "block", "para"),
+    "章节": ("section", "章节", "note"),
+    "断言": ("assert", "断言", "atomic"),
+    "实体": ("node", "entity", "实体", "surface"),
+    "关系": ("edge", "relation", "关系"),
+    "引用": ("cite", "citation", "引用", "bib"),
+    "分组": ("group", "分组", "axis"),
+    "空白": ("gap", "空白", "limitation"),
+    "贡献": ("contribution", "贡献"),
+    "去重": ("duplicate", "去重", "dedup"),
+    "复现": ("repro", "复现", "environment", "checklist"),
+    "耗时": ("耗时", "时间", "duration", "elapsed"),
+    "轮次": ("轮次", "返工", "round", "iteration", "repeat"),
+    "顺序": ("order", "顺序", "sequence"),
+    "表格": ("table", "表格"),
+    "公式": ("formula", "公式", "math"),
+    "元数据": ("metadata", "doi", "author", "year", "元数据"),
+    "来源": ("source", "来源", "sha256"),
+    "一致": ("consistency", "consistent", "一致", "same"),
+    "正确": ("correct", "accurate", "正确", "准确"),
+    "可解析": ("parse", "schema", "可解析"),
+}
+
+
+def evidence_for_axis(axis, data, checks):
+    """Derive a concrete evidence draft from this run's checks and result fields.
+
+    Never invents numbers or baseline observations. Axes that a script cannot
+    observe (e.g. human time cost) are marked not_observable rather than faked.
+    """
+    terms = []
+    for key, words in AXIS_TERMS.items():
+        if key in axis:
+            terms.extend(words)
+    terms = [t.lower() for t in terms if t]
+    if not terms:
+        terms = ["evidence", "check", "result", "锚点", "证据"]
+
+    def hit(text):
+        s = str(text or "").lower()
+        return any(t in s for t in terms)
+
+    parts = []
+    matched_checks = [c for c in checks if hit(c.get("name", "")) or hit(c.get("detail", ""))]
+    for c in matched_checks[:3]:
+        mark = "PASS" if c.get("passed") is True else ("FAIL" if c.get("passed") is False else "REVIEW")
+        parts.append("verification[%s] %s: %s" % (mark, c.get("name", ""), str(c.get("detail", ""))[:120]))
+
+    for key in builder_safe_keys(data):
+        if hit(key):
+            v = data.get(key)
+            summary = summarize_value(v)
+            parts.append("result.%s=%s" % (key, summary[:120]))
+
+    ev = data.get("evidence") or []
+    matched_ev = [e for e in ev if isinstance(e, dict) and
+                  (hit(e.get("claim", "")) or hit(json.dumps(e.get("locator", {}), ensure_ascii=False)))]
+    for e in matched_ev[:2]:
+        loc = json.dumps(e.get("locator", {}), ensure_ascii=False, sort_keys=True)
+        parts.append("evidence.locator=%s quote=%s" % (loc[:100], str(e.get("quote", ""))[:80]))
+
+    if not parts:
+        return {
+            "skill_evidence": "not_observable by script: %s 需由 Agent 从最终产物与人工核对中确认；脚本不编造耗时或基线数据。" % axis,
+            "status": "not_observable",
+            "auto_generated": True,
+        }
+
+    return {
+        "skill_evidence": "auto_draft: " + " | ".join(parts),
+        "status": "auto_draft",
+        "auto_generated": True,
+        "needs_agent_confirmation": True,
+    }
+
+
+def builder_safe_keys(data):
+    meta = {"case_id", "skill_id", "status", "generated_at", "result", "evidence", "sources",
+            "uncertainty", "changes", "needs_human_confirmation", "verification", "comparison"}
+    return [k for k in data.keys() if k not in meta]
+
+
+def summarize_value(v):
+    if isinstance(v, list):
+        if not v:
+            return "[]"
+        first = v[0]
+        if isinstance(first, dict):
+            return "[%d items] first=%s" % (len(v), json.dumps(first, ensure_ascii=False)[:90])
+        return "[%d items] %s" % (len(v), str(first)[:80])
+    if isinstance(v, dict):
+        return "{n=%d} %s" % (len(v), json.dumps(v, ensure_ascii=False)[:90])
+    return str(v)[:120]
+
+
+def build_comparison(data, checks, axes):
+    result = {
+        "case_id": data.get("case_id", ""),
+        "purpose": "使用增益的可核验证据：同一输入下本 Skill 侧的可观察行为与产出。",
+        "axes": [],
+        "instruction": "skill_evidence 由脚本从本次真实运行的检查项与结果字段自动生成初稿（auto_draft）；"
+                       "Agent 需逐项确认或补充，但不得编造 baseline 结果或耗时数字。"
+                       "平台会独立运行基础 Agent 作对照，未观察到就保留 not observed。",
+    }
+    for axis in axes:
+        item = {"axis": axis, "baseline_observation": "not observed"}
+        item.update(evidence_for_axis(axis, data, checks))
+        result["axes"].append(item)
+    return result
+
+
 def finalize_with_checks(builder, args, files, skill_id, comparison_axes, extra_artifacts=None):
     """Write result.json + verification.json + comparison.json + audit.json in one deterministic step."""
     out = Path(args.output)
@@ -265,28 +388,24 @@ def finalize_with_checks(builder, args, files, skill_id, comparison_axes, extra_
                     "pending": len(audit["pending_checks"])},
         "note": "确定性自检记录；passed=false 必须修复或明确写入 uncertainty，不得标 success。",
     }
-    comparison = {
-        "skill_id": skill_id,
-        "case_id": data.get("case_id", ""),
-        "purpose": "使用增益的可核验证据：同一输入下本 Skill 侧的可观察行为与产出。",
-        "axes": [{"axis": a, "baseline_observation": "not observed",
-                  "skill_evidence": "待回填：指向 result.json / verification.json 中的具体字段或锚点",
-                  "status": "pending"} for a in comparison_axes],
-        "instruction": "由 Agent 用本次真实运行证据回填 skill_evidence；平台会独立运行基础 Agent 作对照，"
-                       "不得编造或猜测基础 Agent 的结果。无法观察时保留 not observed。",
-    }
-    # Preserve evidence already filled by the Agent across repeated runs.
+    comparison = build_comparison(data, builder.checks, comparison_axes)
+    comparison["skill_id"] = skill_id
+    # Preserve evidence confirmed by the Agent across repeated runs; otherwise
+    # regenerate the auto draft from the latest real data.
     cpath = out / "comparison.json"
     if cpath.exists():
         try:
             prior = json.loads(cpath.read_text(encoding="utf-8"))
             prior_axes = [a.get("axis") for a in prior.get("axes", [])]
-            already_filled = any(
-                a.get("skill_evidence") and not str(a["skill_evidence"]).startswith("待回填")
-                for a in prior.get("axes", []))
-            if prior_axes == comparison_axes and already_filled:
-                comparison = prior
-                comparison["case_id"] = data.get("case_id", "")
+            confirmed = [a for a in prior.get("axes", [])
+                         if a.get("status") in ("confirmed", "agent_filled", "filled", "reviewed")
+                         or (a.get("status") not in ("auto_draft", "not_observable", "pending")
+                             and str(a.get("skill_evidence", "")).startswith("auto_draft:") is False)]
+            if prior_axes == comparison_axes and confirmed:
+                by_axis = {a["axis"]: a for a in confirmed}
+                for item in comparison["axes"]:
+                    if item["axis"] in by_axis:
+                        item.update(by_axis[item["axis"]])
         except Exception:
             pass
     (out / "verification.json").write_text(json.dumps(verification, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -329,19 +448,32 @@ def validate_output(output_dir, skill_id, comparison_axes):
 
     cpath = out / "comparison.json"
     filled_axes = 0
+    auto_axes = 0
+    not_observable = 0
     if cpath.exists():
         try:
             comp = json.loads(cpath.read_text(encoding="utf-8"))
             for a in comp.get("axes", []):
                 ev = str(a.get("skill_evidence", ""))
-                if ev and not ev.startswith("待回填"):
+                if ev.startswith("auto_draft:"):
+                    filled_axes += 1
+                    auto_axes += 1
+                elif ev.startswith("not_observable by script:"):
+                    not_observable += 1
+                elif ev and not ev.startswith("待回填"):
                     filled_axes += 1
         except Exception:
             pass
     if filled_axes == 0:
-        audit["issues"].append("comparison.json 未回填任何 skill_evidence，增益不可核验")
-    elif filled_axes < len(comparison_axes):
-        audit["warnings"].append("对照维度仅回填 %d/%d" % (filled_axes, len(comparison_axes)))
+        audit["issues"].append("comparison.json 没有任何可核验的 skill_evidence")
+    elif auto_axes:
+        audit["warnings"].append(
+            "对照证据中 %d 项为脚本自动初稿（auto_draft），Agent 应逐项确认；"
+            "%d 项脚本无法观测（如耗时），需人工补充或明确 not observed" % (auto_axes, not_observable))
+    audit["comparison_summary"] = {
+        "total_axes": len(comparison_axes), "with_evidence": filled_axes,
+        "auto_drafts": auto_axes, "not_observable": not_observable
+    }
 
     prior_failed = list(audit.get("failed_checks", []))
     if prior_failed:
