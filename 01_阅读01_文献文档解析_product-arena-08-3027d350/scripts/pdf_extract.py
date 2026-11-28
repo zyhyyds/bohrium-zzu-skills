@@ -293,3 +293,22 @@ def extract_pdf(path):
         meta["backend"] = "stdlib"
     meta["page_count"] = len(pages)
     return pages, meta
+
+def extract_layout_lines(path):
+    """Per-page lines from pypdf layout mode, preserving column spacing for tables."""
+    try:
+        import pypdf  # type: ignore
+    except Exception:
+        return []
+    try:
+        reader = pypdf.PdfReader(str(path))
+        pages = []
+        for page in reader.pages:
+            try:
+                text = page.extract_text(extraction_mode="layout") or ""
+            except Exception:
+                text = page.extract_text() or ""
+            pages.append([ln.rstrip() for ln in text.splitlines()])
+        return pages
+    except Exception:
+        return []

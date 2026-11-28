@@ -12,6 +12,22 @@ SKILL_ID = "writing09-methods-experiments"
 KV_RE = re.compile(r"^\s*(?:[\"']?)([A-Za-z_][\w.\-]*)(?:[\"']?)\s*[:=]\s*([^\n#]+)")
 FLAG_RE = re.compile(r"--([A-Za-z][\w\-]*)[=\s]+([^\s,]+)")
 JSONKV_RE = re.compile(r"\"([A-Za-z_][\w.\-]*)\"\s*:\s*([^,\n}]+)")
+
+# Natural-language parameter mentions that key:value regexes miss, e.g.
+# "batch size of 256", "learning rate 3e-4", "3 epochs", "8 A100 GPUs".
+NAT_RULES = [
+    ("batch_size", re.compile(r"batch\s*size\s*(?:of|=|:)?\s*(\d+)", re.I), ""),
+    ("learning_rate", re.compile(r"learning\s*rate\s*(?:of|=|:)?\s*([0-9]+(?:\.[0-9]+)?(?:e-?\d+)?)", re.I), ""),
+    ("weight_decay", re.compile(r"weight\s*decay\s*(?:of|=|:)?\s*([0-9]+(?:\.[0-9]+)?(?:e-?\d+)?)", re.I), ""),
+    ("dropout", re.compile(r"dropout\s*(?:of|=|:)?\s*([0-9.]+)", re.I), ""),
+    ("epochs", re.compile(r"(\d+)\s*epochs?\b", re.I), "epoch"),
+    ("steps", re.compile(r"(\d+)\s*(?:steps|iterations)\b", re.I), "step"),
+]
+NAT_REVERSE = [
+    ("gpu_count", re.compile(r"(\d+)\s*(?:x\s*)?(?:A100|H100|V100|A800|DCU|GPU)s?\b", re.I), "device"),
+    ("document_count", re.compile(r"([0-9.]+\s*[KMB]?)\s*(?:documents|samples|examples|queries)\b", re.I), "item"),
+]
+
 CATEGORIES = {
     "dataset": ["dataset", "data set", "corpus", "数据集", "train", "test", "val"],
     "seed": ["seed", "random_state", "随机种子"],
@@ -46,6 +62,16 @@ def main():
                                    "source_file": p.name, "line": ln,
                                    "source_type": "config/log/code", "unit": "", "role": ""})
                     break
+            for name, rx, unit in NAT_RULES:
+                for m in rx.finditer(line):
+                    params.append({"name": name, "value": m.group(1).strip(),
+                                   "source_file": p.name, "line": ln,
+                                   "source_type": "prose", "unit": unit, "role": ""})
+            for name, rx, role in NAT_REVERSE:
+                for m in rx.finditer(line):
+                    params.append({"name": name, "value": m.group(1).strip(),
+                                   "source_file": p.name, "line": ln,
+                                   "source_type": "prose", "unit": "", "role": role})
     alltext = "\n".join(read_text(p) for p in files if p.suffix.lower() in (".txt", ".md", ".json", ".yaml", ".yml", ".py", ".sh", ".csv"))
     low = alltext.lower()
     missing = []
@@ -55,6 +81,14 @@ def main():
             b.add_confirm("材料未见 %s 信息：请作者确认或明确标为 not reported。" % cat)
     followups = ["请确认每个参数的单位与作用对象。", "请确认数据集版本、划分比例与随机方式。",
                  "请确认训练/验证/测试条件是否串台。", "请确认基线的版本与预算是否同条件。"]
+    seen, deduped = set(), []
+    for it in params:
+        key = (it["name"], it["value"], it["source_file"], it["line"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(it)
+    params = deduped
     b.set("parameter_table", params)
     b.set("missing_categories", missing)
     b.set("followup_questions", followups)

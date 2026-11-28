@@ -14,6 +14,38 @@ DOI_RE = re.compile(r"10\.\d{4,9}/\S+", re.I)
 TITLE_RE = re.compile(r"(?:title\s*=\s*[{\"']?)([^{}\n,]{10,160})", re.I)
 BRACKET_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 
+YEAR_RE = re.compile(r"\((\d{4})[a-z]?\)|\b(19|20)\d{2}\b")
+
+
+def parse_reference(raw):
+    """Split a reference string into authors / year / title / venue.
+
+    Works on the common forms:
+      "Robertson, S. (2009). The Probabilistic Relevance Framework. Foundations and Trends."
+      "Karpukhin, V. et al. 2020. Dense Passage Retrieval. EMNLP."
+    Returns empty strings for parts it cannot identify — never guesses.
+    """
+    s = " ".join(raw.split())
+    year = ""
+    m = re.search(r"\((\d{4})[a-z]?\)", s)
+    if m:
+        year = m.group(1)
+        head, rest = s[:m.start()], s[m.end():]
+    else:
+        m = re.search(r"\b(19|20)(\d{2})\b", s)
+        if m:
+            year = m.group(1) + m.group(2)
+            head, rest = s[:m.start()], s[m.end():]
+        else:
+            head, rest = s, ""
+    authors = head.strip(" .,")
+    rest = rest.lstrip(" .")
+    parts = [p.strip() for p in re.split(r"\.\s+", rest) if p.strip()]
+    title = parts[0] if parts else ""
+    venue = ". ".join(parts[1:]) if len(parts) > 1 else ""
+    return {"authors": authors[:120], "year": year, "title": title[:180], "venue": venue[:160]}
+
+
 def norm(s):
     return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", (s or "").lower())
 
@@ -39,9 +71,13 @@ def main():
             if m:
                 doi = DOI_RE.search(line)
                 title = TITLE_RE.search(line)
+                parsed = parse_reference(m.group(2).strip())
                 entries.append({"old_number": int(m.group(1)), "raw": m.group(2).strip()[:300],
                                 "doi": doi.group(0).rstrip(".,") if doi else "",
-                                "title": title.group(1).strip() if title else m.group(2).strip()[:100],
+                                "authors": parsed["authors"], "year": parsed["year"],
+                                "title": parsed["title"] or (title.group(1).strip() if title else m.group(2).strip()[:100]),
+                                "venue": parsed["venue"],
+                                "structured": bool(parsed["authors"] or parsed["year"] or parsed["title"]),
                                 "file": p.name, "line": ln})
             elif not is_bib:
                 manuscript.append((p.name, ln, line))

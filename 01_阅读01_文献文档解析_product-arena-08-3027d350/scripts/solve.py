@@ -108,6 +108,24 @@ def join_fragments(items):
     return clean("".join(out))
 
 
+def is_table_row(text: str) -> bool:
+    """Numeric, multi-cell line: the shape of a table row in extracted PDF text."""
+    t = text.strip()
+    if not t or len(t) > 300:
+        return False
+    cells = re.split(r"\s{2,}", t)
+    if len(cells) >= 3:
+        numeric = sum(1 for c in cells if re.search(r"\d", c))
+        if numeric >= 2:
+            return True
+    toks = t.split()
+    if 4 <= len(toks) <= 40:
+        numeric = sum(1 for x in toks if re.fullmatch(r"[-+]?\d+(?:\.\d+)?%?", x))
+        if numeric >= max(4, int(len(toks) * 0.5)):
+            return True
+    return False
+
+
 def classify(text: str) -> str:
     t = text.strip()
     if not t:
@@ -125,6 +143,8 @@ def classify(text: str) -> str:
         if FORMULA_HINT.search(t) and symbols >= 2 and letters < len(t) * 0.55:
             return "formula"
     if t.count("|") >= 2 and len(t) < 400:
+        return "table"
+    if is_table_row(t):
         return "table"
     return "paragraph"
 
@@ -150,7 +170,28 @@ def build_blocks_from_lines(lines):
         })
         buf = []
 
+    TABLE_BUFFER = []
     for line in lines:
+        if is_table_row(line["text"]) and line.get("source", "") == (TABLE_BUFFER[0].get("source", "") if TABLE_BUFFER else line.get("source", "")):
+            TABLE_BUFFER.append(line)
+            continue
+        if TABLE_BUFFER:
+            rows = []
+            for l in TABLE_BUFFER:
+                cells = [c for c in re.split(r"\s{2,}", l["text"].strip()) if c]
+                rows.append(cells if len(cells) > 1 else l["text"].split())
+            flush()
+            blocks.append({
+                "block_id": "B%04d" % (len(blocks) + 1),
+                "kind": "table",
+                "text": " || ".join(r["text"] if isinstance(r, dict) else str(r) for r in TABLE_BUFFER),
+                "page": TABLE_BUFFER[0]["page"],
+                "source": TABLE_BUFFER[0].get("source", ""),
+                "first_line": TABLE_BUFFER[0]["text"][:200],
+                "rows": rows,
+                "row_count": len(rows),
+            })
+            TABLE_BUFFER = []
         kind = classify(line["text"])
         if kind in ("heading", "caption", "reference", "table", "formula"):
             flush()
@@ -162,6 +203,22 @@ def build_blocks_from_lines(lines):
             buf.append(line)
             if len(buf) > 400:
                 flush()
+    if TABLE_BUFFER:
+        rows = []
+        for l in TABLE_BUFFER:
+            cells = [c for c in re.split(r"\s{2,}", l["text"].strip()) if c]
+            rows.append(cells if len(cells) > 1 else l["text"].split())
+        blocks.append({
+            "block_id": "B%04d" % (len(blocks) + 1),
+            "kind": "table",
+            "text": " || ".join(l["text"] for l in TABLE_BUFFER),
+            "page": TABLE_BUFFER[0]["page"],
+            "source": TABLE_BUFFER[0].get("source", ""),
+            "first_line": TABLE_BUFFER[0]["text"][:200],
+            "rows": rows,
+            "row_count": len(rows),
+        })
+        TABLE_BUFFER = []
     flush()
     return blocks
 
@@ -173,6 +230,31 @@ def collect_from_pdf(path):
         lines.extend(items_to_lines(items, i))
     return lines, meta
 
+
+
+def tables_from_layout(pages, source_name, min_rows=2, min_cols=3):
+    """Detect table blocks in layout text: consecutive rows with 3+ spaced cells."""
+    out = []
+    for pno, lines in enumerate(pages, 1):
+        buf = []
+        for ln in lines + [""]:
+            cells = [c.strip() for c in re.split(r"\s{2,}", ln.strip()) if c.strip()]
+            numeric = sum(1 for c in cells if re.search(r"\d", c))
+            is_row = len(cells) >= min_cols and numeric >= 2
+            if is_row:
+                buf.append(cells)
+            elif buf:
+                if len(buf) >= min_rows:
+                    out.append({
+                        "page": pno,
+                        "source": source_name,
+                        "columns": max(len(r) for r in buf),
+                        "row_count": len(buf),
+                        "rows": buf[:60],
+                        "structure_status": "layout_rows",
+                    })
+                buf = []
+    return out
 
 
 def text_quality(blocks):
@@ -238,6 +320,15 @@ def main():
                        quote=blk["text"][:300], source_id=blk.get("source", ""),
                        strength="direct")
 
+    layout_tables = []
+    for p in files:
+        if p.suffix.lower() == ".pdf":
+            try:
+                from pdf_extract import extract_layout_lines
+                layout_tables.extend(tables_from_layout(extract_layout_lines(p), p.name))
+            except Exception:
+                pass
+
     by_kind = {}
     for blk in blocks:
         by_kind.setdefault(blk["kind"], []).append(blk)
@@ -255,8 +346,20 @@ def main():
                 for h in by_kind.get("heading", [])]
     figures = [{"label": c["text"][:80], "page": c["page"], "block_id": c["block_id"]}
                for c in by_kind.get("caption", [])]
-    tables = [{"label": t["text"][:80], "page": t["page"], "block_id": t["block_id"]}
+    tables = [{"label": t["text"][:80], "page": t["page"], "block_id": t["block_id"],
+               "structure_status": "row_detected"}
               for t in by_kind.get("table", [])]
+    # A caption that announces a table but whose body was not row-detected is still a
+    # real table location; record it honestly instead of dropping it.
+    for c in by_kind.get("caption", []):
+        if re.match(r"^\s*table[\s:]*\d*", c["text"], re.I) and not tables:
+            tables.append({"label": c["text"][:80], "page": c["page"],
+                           "block_id": c["block_id"], "structure_status": "caption_only"})
+    for lt in layout_tables:
+        tables.append({"label": "p%d: %s" % (lt["page"], " | ".join(lt["rows"][0][:4])[:70]),
+                       "page": lt["page"], "row_count": lt["row_count"],
+                       "columns": lt["columns"], "source": lt["source"],
+                       "structure_status": lt["structure_status"]})
     formulas = [{"text": f["text"][:200], "page": f["page"], "block_id": f["block_id"]}
                 for f in by_kind.get("formula", [])]
 

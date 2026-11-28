@@ -15,6 +15,33 @@ FIELDS = ["research_question", "data", "method_conditions", "main_findings", "li
 AXES = ["章节骨架对齐度", "五字段完整率", "论断/数值准确率", "锚点可回查率", "笔记可检索性", "单篇整理耗时"]
 
 
+FIELD_CUES = {
+    "research_question": r"(?:we (?:study|investigate|ask|address|examine)|this paper|本文|研究问题|\?)",
+    "data": r"(?:dataset|corpus|benchmark|samples?|queries|数据集|语料)",
+    "method_conditions": r"(?:we (?:use|train|evaluate|run|tune)|batch size|learning rate|GPU|A100|方法|实验设置)",
+    "main_findings": r"(?:results? show|we (?:find|observe|achieve|reach)|improves?|outperforms?|accuracy|nDCG|结果|提升)",
+    "limitations": r"(?:limitation|we (?:do not|only)|future work|cannot|局限|不足)",
+}
+
+
+def sentences(text):
+    parts = re.split(r"(?<=[.!?。！？])\s+", " ".join(text.split()))
+    return [s.strip() for s in parts if len(s.strip()) >= 12]
+
+
+def fill_card(raw):
+    """Fill the five fields with the sentences that actually mention them."""
+    sents = sentences(raw)
+    fields = {}
+    for key, cue in FIELD_CUES.items():
+        rx = re.compile(cue, re.I)
+        hits = [s for s in sents if rx.search(s)]
+        fields[key] = " ".join(hits[:2])[:600]
+    summary = " ".join(sents[:2])[:600] if sents else ""
+    filled = sum(1 for v in fields.values() if v)
+    return summary, fields, filled
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -44,12 +71,19 @@ def main():
     cards = []
     for n in notes:
         raw = "\n".join(n["raw"]).strip()
+        summary, fields, filled = fill_card(raw)
         card = {"note_id": "N%03d" % (len(cards) + 1), "section_id": n["section_id"],
                 "section_title": n["title"], "anchor": {"file": n["file"], "line": n["start_line"], "section_id": n["section_id"]},
-                "quote": raw[:500], "summary": "", "fields": {k: "" for k in FIELDS}, "status": "pending"}
+                "quote": raw[:500], "summary": summary, "fields": fields,
+                "fields_filled": filled,
+                "status": "auto_filled" if filled >= 3 else ("partial" if filled else "pending")}
         cards.append(card)
         b.add_evidence(claim=n["title"], locator=card["anchor"], quote=raw[:300], source_id=n["file"])
     b.set("notes", cards)
+    b.set("fill_stats", {"cards": len(cards),
+                         "auto_filled": sum(1 for c in cards if c["status"] == "auto_filled"),
+                         "partial": sum(1 for c in cards if c["status"] == "partial"),
+                         "pending": sum(1 for c in cards if c["status"] == "pending")})
     b.set("field_dictionary", {k: "从原文该章节抽取，缺失写 not reported，不得推断。" for k in FIELDS})
     b.set("search_index_hint", "按 section_title、fields 中的术语与 anchor.section_id 建立检索。")
     if not cards:
