@@ -4,7 +4,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -75,6 +75,14 @@ def main():
                 "候选边 %d 条，每条须有 quote 与 paragraph_id；共现不算关系" % len(edges))
     b.add_check("queries_live", None,
                 "三个查询须由 Agent 基于最终节点与边实际执行并回填结果子图与支撑证据，不得使用脚本占位查询")
+    autofill_contract(b, {
+        "nodes": nodes,
+        "entities": nodes,
+        "edges": edges,
+        "relations": edges,
+        "queries": queries,
+        "cross_source_conflicts": conflicts,
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

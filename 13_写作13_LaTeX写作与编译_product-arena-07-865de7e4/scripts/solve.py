@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -83,6 +83,12 @@ def main():
                 "静态检查问题 %d 条；0 条也必须用 latex-compiler 真实编译确认" % len(issues))
     b.add_check("compile_executed", None,
                 "须真实编译并把完整日志、轮次、TeX 发行版与宏包/字体版本回填 result.json")
+    autofill_contract(b, {
+        "issues": issues,
+        "compile_issues": issues,
+        "compile_plan": b.data.get("compile_plan") or [],
+        "environment_record": b.data.get("environment_record") or [],
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

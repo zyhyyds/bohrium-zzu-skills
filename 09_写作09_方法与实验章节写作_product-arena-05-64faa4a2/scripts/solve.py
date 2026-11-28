@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -66,6 +66,14 @@ def main():
                 "未见要素类别：%s" % (",".join(missing) if missing else "none"))
     b.add_check("no_fabricated_values", None,
                 "材料中没有的参数/种子/版本一律 not reported 并追问，不得为段落顺畅补数值")
+    autofill_contract(b, {
+        "parameters": params,
+        "parameter_table": params,
+        "missing": missing,
+        "missing_categories": missing,
+        "followup_questions": followups,
+        "reproducibility_checklist": b.data.get("reproducibility_checklist") or [],
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

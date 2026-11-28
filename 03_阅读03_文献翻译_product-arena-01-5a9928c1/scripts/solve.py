@@ -4,7 +4,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, CITE_RE, common_args, find_key, invariant_report,
+from evidence_core import (autofill_contract, ResultBuilder, CITE_RE, common_args, find_key, invariant_report,
                            load_case, locate, read_text, sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -66,6 +66,15 @@ def main():
     b.add_check("segment_coverage", bool(segments), "段号 %d 个，不得跳号或重复" % len(segments))
     b.add_check("invariant_clear", not ((b.data.get("invariant_checks") or {}).get("numbers_missing")),
                 "数字缺失必须为零或在 uncertainty 中逐项解释")
+    autofill_contract(b, {
+        "glossary": glossary,
+        "segments": segments,
+        "translated_segments": segments,
+        "translations": [{"segment_id": s["segment_id"], "translation": s.get("translation", ""),
+                          "anchor": s.get("anchor")} for s in segments],
+        "source_text": source,
+        "invariant_checks": checks,
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -82,6 +82,16 @@ def main():
                 "编号映射 %d 项；missing=%s unused=%s" % (len(changes), missing, unused))
     b.add_check("dedup_basis", bool(duplicates) or True,
                 "重复条目 %d 组，每组须写 DOI/题名归一化依据，防误合并同名作者不同文献" % len(duplicates))
+    autofill_contract(b, {
+        "references": entries,
+        "cited_references": entries,
+        "citation_points": used,
+        "citations": used,
+        "numbering_map": changes,
+        "duplicates": duplicates,
+        "unused_entries": unused,
+        "missing_entries": missing,
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

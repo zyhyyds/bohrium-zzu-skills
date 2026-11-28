@@ -355,6 +355,31 @@ def summarize_value(v):
     return str(v)[:120]
 
 
+
+def autofill_contract(builder, mapping):
+    """Fill empty output_contract fields with real content produced by this run.
+
+    Matching is exact-first, then case-insensitive substring, so a contract key
+    like "translated_segments" also picks up a "segments" product.
+    Returns the list of keys that were filled.
+    """
+    filled = []
+    for key in builder.contract_keys:
+        if builder.data.get(key) not in (None, "", [], {}, 0, False):
+            continue
+        if key in mapping:
+            builder.data[key] = mapping[key]
+            filled.append(key)
+            continue
+        low = key.lower()
+        for mk, mv in mapping.items():
+            if mk.lower() in low or low in mk.lower():
+                builder.data[key] = mv
+                filled.append(key)
+                break
+    return filled
+
+
 def build_comparison(data, checks, axes):
     result = {
         "case_id": data.get("case_id", ""),

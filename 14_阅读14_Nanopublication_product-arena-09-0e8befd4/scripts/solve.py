@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, locate, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, locate, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -61,6 +61,12 @@ def main():
     b.add_check("atomic_grain", None if candidates else False,
                 "含并列/因果/转折的候选须拆到单一主体与单一关系，再回填 subject/relation/qualifier")
     b.add_check("export_schema", bool(b.data.get("export_schema")), "导出字段固定为 %d 项" % len(b.data.get("export_schema") or []))
+    autofill_contract(b, {
+        "assertions": candidates,
+        "assertion_candidates": candidates,
+        "export_schema": b.data.get("export_schema") or [],
+        "quality_rules": b.data.get("quality_rules") or [],
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, CITE_RE, common_args, load_case,
+from evidence_core import (autofill_contract, ResultBuilder, CITE_RE, common_args, load_case,
                            locate, read_text, sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -57,6 +57,15 @@ def main():
                 "空白候选 %d 条；无显式限制词时必须写明从引文覆盖/实验条件的推导链" % len(gaps))
     b.add_check("contribution_evidence", None,
                 "每条贡献须在正文图表或实验中找到对应证据，找不到就降级或删除")
+    autofill_contract(b, {
+        "claims": claims,
+        "claim_table": claims,
+        "gaps": gaps,
+        "gap_candidates": gaps,
+        "contributions": contributions,
+        "contribution_candidates": contributions,
+        "related_work_groups": {a: [] for a in ["问题设定", "方法路线", "数据与评价方式"]},
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 

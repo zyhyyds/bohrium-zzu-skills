@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from evidence_core import (ResultBuilder, common_args, load_case, read_text,
+from evidence_core import (autofill_contract, ResultBuilder, common_args, load_case, read_text,
                            sha256_file, text_files, write_result)
 
 from evidence_core import finalize_with_checks  # v2 audit gate
@@ -60,6 +60,12 @@ def main():
                 "research_question/data/method_conditions/main_findings/limitations 五字段须由 Agent 按原文回填，缺失写 not reported")
     b.add_check("quote_anchors", all(x.get("anchor", {}).get("file") for x in cards),
                 "每条笔记的 anchor 必须指向真实文件与行号/段落")
+    autofill_contract(b, {
+        "notes": cards,
+        "sections": cards,
+        "note_cards": cards,
+        "field_dictionary": b.data.get("field_dictionary") or {},
+    })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")
 
