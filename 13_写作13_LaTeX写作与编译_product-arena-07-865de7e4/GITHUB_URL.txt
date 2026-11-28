@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-13_写作13_LaTeX写作与编译_product-arena-07-865de7e4
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/13_%E5%86%99%E4%BD%9C13_LaTeX%E5%86%99%E4%BD%9C%E4%B8%8E%E7%BC%96%E8%AF%91_product-arena-07-865de7e4
+SKILL.md

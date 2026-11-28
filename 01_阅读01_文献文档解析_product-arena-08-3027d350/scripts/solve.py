@@ -174,6 +174,25 @@ def collect_from_pdf(path):
     return lines, meta
 
 
+
+def text_quality(blocks):
+    """Flag implausibly long letter runs: PDFs that draw no space glyphs."""
+    samples, count = [], 0
+    for b in blocks:
+        for tok in re.findall(r"[A-Za-z]{22,}", b.get("text", "")):
+            count += 1
+            if len(samples) < 5:
+                samples.append({"block_id": b.get("block_id"), "token": tok[:60],
+                                "length": len(tok)})
+    total_chars = sum(len(b.get("text", "")) for b in blocks) or 1
+    return {
+        "long_token_count": count,
+        "long_token_samples": samples,
+        "chars": total_chars,
+        "note": "长粘连词通常表示 PDF 未绘制空格字符；本 Skill 如实标注，不猜补空格。",
+    }
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -255,6 +274,12 @@ def main():
             for i in range(len(blocks) - 1) if blocks[i]["page"] and blocks[i + 1]["page"]),
     })
     b.set("document_meta", doc_meta)
+    tq = text_quality(blocks)
+    b.set("text_quality", tq)
+    if tq["long_token_count"]:
+        b.add_uncertainty("检出 %d 处超长粘连词（示例：%s），可能是 PDF 未绘制空格字符所致，需人工核对分词。"
+                          % (tq["long_token_count"],
+                             ", ".join(x["token"] for x in tq["long_token_samples"][:2])))
     b.set("inventory", [{"path": str(p), "sha256": sha256_file(p), "suffix": p.suffix}
                         for p in files])
 

@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-04_写作04_参考文献与引用管理_product-arena-03-429cc14d
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/04_%E5%86%99%E4%BD%9C04_%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE%E4%B8%8E%E5%BC%95%E7%94%A8%E7%AE%A1%E7%90%86_product-arena-03-429cc14d
+SKILL.md

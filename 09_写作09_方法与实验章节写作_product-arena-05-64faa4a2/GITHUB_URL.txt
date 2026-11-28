@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-09_写作09_方法与实验章节写作_product-arena-05-64faa4a2
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/09_%E5%86%99%E4%BD%9C09_%E6%96%B9%E6%B3%95%E4%B8%8E%E5%AE%9E%E9%AA%8C%E7%AB%A0%E8%8A%82%E5%86%99%E4%BD%9C_product-arena-05-64faa4a2
+SKILL.md

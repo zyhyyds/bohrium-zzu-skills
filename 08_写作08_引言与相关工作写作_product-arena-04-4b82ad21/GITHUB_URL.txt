@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-08_写作08_引言与相关工作写作_product-arena-04-4b82ad21
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/08_%E5%86%99%E4%BD%9C08_%E5%BC%95%E8%A8%80%E4%B8%8E%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E5%86%99%E4%BD%9C_product-arena-04-4b82ad21
+SKILL.md

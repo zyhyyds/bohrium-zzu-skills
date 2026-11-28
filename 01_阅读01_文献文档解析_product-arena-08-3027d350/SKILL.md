@@ -70,3 +70,14 @@ Agent 的职责是**核对与修正**：抽查脚本产物与原文是否一致�
 - [ ] 每条关键结论有锚点
 - [ ] README 含版本、依赖、限制、自查方法
 - [ ] GITHUB_URL.txt 已填公开链接（无登录浏览器可打开）
+
+## 异常处理矩阵
+
+| 情况 | 处置 | 输出的 status |
+|---|---|---|
+| PDF 有文字层 | 直接解析，按页输出块与锚点 | `success` |
+| PDF 无文字层 / 扫描件 | 不伪造正文，标注需 OCR 并列出待处理页 | `partial` |
+| 加密 PDF | 不尝试解密，说明无法读取的具体原因 | `refuse` |
+| PDF 使用对象流 / 交叉引用流 | 解压 ObjStm 后按 /Pages → /Kids 顺序取页 | 同上 |
+| 文本粘连（缺空格字符） | 写入 `text_quality.long_token_samples` 与 `uncertainty`，提示人工核对 | `partial` |
+| 输入为空或非 PDF/文本 | 输出空结果并说明缺失项 | `unknown` |

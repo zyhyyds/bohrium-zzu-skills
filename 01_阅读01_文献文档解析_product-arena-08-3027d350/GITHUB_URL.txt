@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-01_阅读01_文献文档解析_product-arena-08-3027d350
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/01_%E9%98%85%E8%AF%BB01_%E6%96%87%E7%8C%AE%E6%96%87%E6%A1%A3%E8%A7%A3%E6%9E%90_product-arena-08-3027d350
+SKILL.md

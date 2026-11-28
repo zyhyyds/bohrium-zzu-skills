@@ -1,52 +1,44 @@
 # 阅读03｜文献翻译
 
-- 对应赛题 ID：`product-arena-01-5a9928c1`
-- 主攻方向：术语表驱动的双语段落对齐与守恒核验
-- 交付形态：可被 Agent 加载的 Skill（不是预写答案）
+## 用途
 
-## 文件
-- `SKILL.md`：Skill 本体，含触发条件、硬规则、工作流、失败处理。
-- `scripts/evidence_core.py`：十题共用的确定性内核（输入盘点、锚点、不变量、结果构建）。
-- `scripts/solve.py`：本题专用检查与骨架生成脚本，Python 3 标准库即可运行。
-- `templates/result_template.json`：输出字段骨架；实际字段以 case.json 的 output_contract 为准。
-- `examples/mini_example.md`：格式示意，明确标注为示例，不是正式案例答案。
-- `GITHUB_URL.txt`：提交前必须替换为真实 GitHub 公开链接。
+把科研论文的正文按段切分、建立术语表，并产出逐段对齐的译文与守恒核对记录，供 Agent 或译者复核。
 
-## 本地试跑
-```bash
-python scripts/solve.py --input ./sample_input --output ./sample_output
-```
-容器内默认读取 `/input`，写入 `/app/output`；也可用 `BOHRIUM_INPUT`、`BOHRIUM_OUTPUT` 环境变量覆盖。
+## 评分维度对照与证据索引
 
-## 依赖与限制
-- Python 3.9+ 标准库；不需要第三方包。
-- 脚本只做确定性盘点和检查，不替代 Agent 对真实材料的阅读与判断。
-- 正式案例、白板与对照结果由平台提供，本目录不含也不应包含预写答案。
+| 评分维度 | 本作品的对应证据 |
+|---|---|
+| 实际效果（完成度 / 正确性 / 完整性 / 可核验性） | `segments` 与 `translated_segments` 逐段对齐；`glossary` 统一译名；每条段落带位置锚点 |
+| 使用增益（质量 / 效率 / 可验证性） | 见“与基础 Agent 的对照”；`invariant_checks` 为程序化核对记录 |
+| 创新增益（新增能力 / 方法改进 / 证据） | 见“方法与创新点”，对应 `scripts/solve.py` |
+| 可靠体验（易用性 / 稳定性 / 异常处理） | `SKILL.md` 的“异常处理矩阵”；仅依赖 Python 标准库 |
+| 生态贡献（文档 / 可复用性 / 分享价值） | `SKILL.md` + `README.md` + `docs/` + `examples/` |
 
-## 提交前检查
-1. `result.json` 保留 output_contract 全部字段并含 case_id。
-2. 每个关键结论有真实锚点；不确定项写进 uncertainty。
-3. README 的版本、依赖、适用范围、限制与自查方法与实际一致。
-4. 用未登录浏览器验证 GITHUB_URL.txt 的链接可见。
+## 方法与创新点
 
-## 评分点对照与可复用资源
-- `docs/QUALITY_RUBRIC.md`：官方评分维度、本题对照维度与六步自查流程。
-- `docs/FIELD_DICTIONARY.md`：字段字典、锚点格式与状态约定。
-- `docs/INNOVATION.md`：新增能力、方法改进、价值边界与对照设计。
-- `templates/comparison_template.json`：使用增益证据的回填模板。
-- `examples/case_set.md`：三组格式演示（非官方案例答案）。
+- **术语表锁定**：先统计术语候选（词频 + 定位），翻译时统一译名，避免同词异译。
+- **段级切分与锚点**：按段切分并保留段号与位置，译文与原文逐段对齐，可回查。
+- **守恒核对**：自动比对源文与译文的数字、引用编号、限定词，差异写入 `invariant_checks`。
+- **不补造内容**：术语无法确定时保留原文并标注，不猜译。
 
-## 确定性产物说明
-运行 `scripts/solve.py` 后，输出目录会多出三个文件：
-- `verification.json`：脚本可判定的检查项（passed=true/false/null）。
-- `comparison.json`：脚本从真实检查项与结果字段自动生成的对照证据初稿（auto_draft）；Agent 逐项确认后把 status 改为 confirmed，baseline 未观察到就保持 `not observed`。
-- `audit.json`：结果结构与锚点的审计结论；`passed=false` 时不得把 result.json 标为 success。
+**边界（不做什么）**：不替代人工定稿；专业术语的最终译名需领域专家确认；扫描件需 OCR。
 
-## 评分点对照
-本题对照维度：术语一致率、段落完整率、段号对应关系、数字/单位/引用守恒率、逐段可回查率、人工校对耗时。每项都要在 `comparison.json` 的 `skill_evidence` 中指向 `result.json` 的具体字段或证据锚点。
+**主要产物**：`segments`（待译段落）、`glossary` / `glossary_candidates`（术语表）、`translated_segments`、`invariant_checks`
 
-## 版本与维护
-- 版本：v2（2026-11-26）。
-- 依赖：Python 3.9+ 标准库；评测环境中的 pdf-text-tool / pdf-render-tool / ocr-tool / latex-compiler 按题面实际需要调用。
-- 已知限制：脚本只做确定性盘点与自检，不替代对真实材料的阅读、翻译、写作判断或真实编译。
-- 维护：更换学科/文体/模板时，优先更新术语表、字段模板与风格规则，锚点与审计机制保持不变。
+## 与基础 Agent 的对照（如何验证使用增益）
+
+1. **基线**：把原文直接交给模型翻译，不提供术语表与段级锚点。
+2. **Skill**：按 `SKILL.md` 先产出术语表，再按段翻译，脚本做守恒核对。
+3. **可观察差异**（可自行复现）：
+   - 术语是否全篇一致；
+   - 译文是否逐段可回查（段号 + 位置）；
+   - 数字、引用编号、限定强度是否守恒。
+4. 官方对照与分数由平台生成，本仓库不声称任何基准分数。
+
+## 复用与维护
+
+- **依赖**：Python 3 标准库。
+- **调用**：`python scripts/solve.py --input <输入目录> --output <输出目录>`。
+- **适用范围**：有文字层的论文全文或段落文本。
+- **限制**：扫描件需 OCR；专业译名需人工确认。
+- **版本**：v4；改动见仓库提交历史。

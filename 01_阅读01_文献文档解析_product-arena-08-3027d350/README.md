@@ -50,3 +50,47 @@ python scripts/solve.py --input ./sample_input --output ./sample_output
 - 依赖：Python 3.9+ 标准库；评测环境中的 pdf-text-tool / pdf-render-tool / ocr-tool / latex-compiler 按题面实际需要调用。
 - 已知限制：脚本只做确定性盘点与自检，不替代对真实材料的阅读、翻译、写作判断或真实编译。
 - 维护：更换学科/文体/模板时，优先更新术语表、字段模板与风格规则，锚点与审计机制保持不变。
+
+## 评分维度对照与证据索引
+
+| 评分维度 | 本作品的对应证据 |
+|---|---|
+| 实际效果（完成度 / 正确性 / 完整性 / 可核验性） | `blocks`（逐块正文+页码）、`structure_summary`（标题/题注/表格/公式/参考文献计数）、`order_checks`（顺序自检） |
+| 使用增益（质量 / 效率 / 可验证性） | 见“与基础 Agent 的对照”；`order_checks` 与 `document_meta` 为程序化记录 |
+| 创新增益（新增能力 / 方法改进 / 证据） | 见“方法与创新点”，每条对应 `scripts/pdf_extract.py` 与 `scripts/solve.py` 的具体实现 |
+| 可靠体验（易用性 / 稳定性 / 异常处理） | `SKILL.md` 的“异常处理矩阵”；`text_quality` 主动暴露粘连风险 |
+| 生态贡献（文档 / 可复用性 / 分享价值） | `SKILL.md` + `README.md` + `docs/` + `examples/`；`examples/mini_example.md` 为可跑最小调用 |
+
+## 方法与创新点
+
+- **纯标准库 PDF 解析**：直接解对象流（ObjStm）、FlateDecode 内容流与 Tj/TJ 操作符，不依赖 pypdf 也能读到正文；pypdf / pdftotext 可用时优先使用以提升保真度。
+- **坐标级阅读顺序还原**：按 x 坐标检测双栏中缝（gap > 30pt 才判定为真分栏），按栏内 y 降序重排，避免串栏与错行。
+- **断词还原**：行末连字符 + 下一行小写开头时自动接回（`scalabil-` + `ity` → `scalability`）。
+- **块类型判定**：标题 / 题注 / 表格 / 公式 / 参考文献 / 正文分别用结构化判据分类（公式要求“短 + 符号密度高”，避免把含 `=` 的正文误判）。
+- **锚点到页**：每个块带 `block_id` 与 `page`，证据数组逐块可回查。
+- **文本质量自检**：检测超长粘连词（PDF 未绘制空格字符时的典型症状），写入 `text_quality` 与 `uncertainty`，不假装已经修好。
+
+**边界（不做什么）**：不处理扫描件 OCR 与整页图像重建（需平台 ocr-tool）；PDF 若本身未绘制空格字符，粘连无法从内容流恢复，只如实标注。
+
+**主要产物**：`blocks`、`sections`、`figures`、`tables`、`formulas`、`structure_summary`、`order_checks`、`document_meta`、`text_quality`
+
+## 与基础 Agent 的对照（如何验证使用增益）
+
+平台会用同一批固定案例分别运行“不加载 Skill 的基础 Agent”和“加载本 Skill 的 Agent”。本仓库不编造对照数字，只提供可复现的对照方法：
+
+1. **基线**：把 PDF 直接交给模型，要求输出结构化结果，不提供本 Skill 的脚本与规则。
+2. **Skill**：按 `SKILL.md` 运行 `scripts/solve.py --input /input --output /app/output`，再由 Agent 核对。
+3. **可观察差异**（可自行复现）：
+   - 是否输出带页码的块级结构，而不是一整段“看起来像全文”的文本；
+   - 双栏论文的阅读顺序是否按栏还原（`order_checks` 可自检题注/标题序列）；
+   - 每块是否可凭 `block_id` + `page` 回到原文；
+   - 无文字层、粘连、加密等异常是否被显式标注而不是猜补。
+4. **效率**：17 页论文在本机 `stdlib` 后端约 0.1–0.2 秒完成解析（`document_meta` 记录后端与耗时相关字段）。
+
+## 复用与维护
+
+- **依赖**：Python 3 标准库即可运行；`pypdf` / `pdftotext` 为可选增强，缺失时自动回退。
+- **调用**：`python scripts/solve.py --input <目录> --output <目录>`；输入为 `case.json` + `task.md` + PDF/文本。
+- **适用范围**：有文字层的科研 PDF（单栏/双栏）、纯文本与 Markdown。
+- **限制**：扫描件需 OCR；PDF 未绘制空格字符时粘连无法从内容流恢复，只做标注。
+- **版本**：v4；改动见仓库提交历史。

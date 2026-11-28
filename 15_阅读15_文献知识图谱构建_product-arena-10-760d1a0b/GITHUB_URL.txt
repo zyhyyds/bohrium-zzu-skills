@@ -1,2 +1,2 @@
-https://github.com/zyhyyds/bohrium-zzu-skills
-15_阅读15_文献知识图谱构建_product-arena-10-760d1a0b
+https://github.com/zyhyyds/bohrium-zzu-skills/tree/main/15_%E9%98%85%E8%AF%BB15_%E6%96%87%E7%8C%AE%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1%E6%9E%84%E5%BB%BA_product-arena-10-760d1a0b
+SKILL.md
