@@ -20,6 +20,52 @@ ISSUES = [
 AXES = ["语法硬错误修正率", "术语一致率", "限定强度守恒率", "数据/引用/图表指向守恒率", "逐句说明完整率", "返修轮次"]
 
 
+ACRONYM_DEF = re.compile(r"([A-Z][A-Za-z][A-Za-z\s-]{4,80})\s*\(([A-Z]{2,10})\)")
+HYPHEN = re.compile(r"\b([a-z]{3,})-(?=[a-z]{3,}\b)")
+
+
+def terminology_scan(text):
+    """Find terminology inconsistencies: re-defined acronyms, hyphen variants, case drift."""
+    issues, canon = [], {}
+
+    # 1) acronym re-definition with a different expansion
+    for m in ACRONYM_DEF.finditer(text):
+        _w = " ".join(m.group(1).split()).lower().split()
+        exp, ac = " ".join(_w[-6:]), m.group(2)
+        if ac in canon and canon[ac] != exp:
+            issues.append({"term": ac, "issue": "redefined", "forms": [canon[ac], exp],
+                           "advice": "同一缩写只保留一个全称，首次定义后不再重复定义"})
+        canon.setdefault(ac, exp)
+
+    # 2) hyphen / non-hyphen variants of the same compound
+    low = text.lower()
+    seen = set()
+    for m in HYPHEN.finditer(low):
+        h = low[m.start():m.start() + len(m.group(1)) + 1 + 6]
+        mm = re.match(r"([a-z]{3,})-([a-z]{3,})", h)
+        if not mm:
+            continue
+        joined = mm.group(1) + mm.group(2)
+        if re.search(r"\b" + re.escape(joined) + r"\b", low):
+            key = tuple(sorted([mm.group(0), joined]))
+            if key in seen:
+                continue
+            seen.add(key)
+            issues.append({"term": joined, "issue": "hyphen_variant",
+                           "forms": [mm.group(0), joined],
+                           "advice": "全篇统一为带连字符或不带连字符的一种写法"})
+
+    # 3) acronym case drift (e.g. "Llm" where "LLM" dominates)
+    for ac in canon:
+        for m in re.finditer(r"\b" + re.escape(ac) + r"\b", text, re.I):
+            got = m.group(0)
+            if got != ac and got.upper() == ac:
+                issues.append({"term": ac, "issue": "case_drift", "forms": [ac, got],
+                               "advice": "缩写保持全大写"})
+                break
+    return issues
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -79,6 +125,17 @@ def main():
                     w["reason"] = a["reason"]
                     w["status"] = "revised_auto"
 
+    term_issues = terminology_scan(source)
+    b.set("terminology_consistency", term_issues)
+    b.set("terminology_stats", {"issues": len(term_issues),
+                                "redefined": sum(1 for x in term_issues if x["issue"] == "redefined"),
+                                "hyphen_variant": sum(1 for x in term_issues if x["issue"] == "hyphen_variant"),
+                                "case_drift": sum(1 for x in term_issues if x["issue"] == "case_drift")})
+    for x in term_issues:
+        worklist.append({"file": "", "issue_type": "terminology", "matched": x["term"],
+                         "sentence": " / ".join(x["forms"]), "rule": x["advice"],
+                         "locator": {}, "revised": "", "reason": "", "status": "pending"})
+
     target = polished
     b.set("polish_worklist", worklist)
     b.set("polished_text", polished)
@@ -103,6 +160,7 @@ def main():
         "worklist": worklist,
         "invariant_checks": b.data.get("invariant_checks"),
         "glossary": b.data.get("glossary") or [],
+        "terminology": term_issues,
     })
     finalize_with_checks(b, args, files, SKILL_ID, AXES)
     print("wrote", Path(args.output) / "result.json")

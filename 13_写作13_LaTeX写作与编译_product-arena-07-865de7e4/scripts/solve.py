@@ -20,6 +20,57 @@ IMAGE_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])*\{([^}]*)\}")
 AXES = ["编译成功率", "错误根因定位准确率", "修复正确率", "公式/表格/引用对齐率", "可复现构建记录完整率", "定位报错耗时"]
 
 
+MOJIBAKE = ("Ã", "â€", "ï¿½", "\ufffd")
+
+
+def extra_checks(texfiles, bibfiles, labels, issues):
+    """Duplicate labels, duplicate bib keys, encoding, unused labels."""
+    # duplicate \label
+    counts = {}
+    for p in texfiles:
+        for ln, line in enumerate(read_text(p).splitlines(), 1):
+            for key in LABEL_RE.findall(line):
+                counts.setdefault(key, []).append((p.name, ln))
+    for key, places in counts.items():
+        if len(places) > 1:
+            issues.append({"file": places[1][0], "line": places[1][1], "severity": "error",
+                           "type": "duplicate_label",
+                           "detail": "%s 定义 %d 次：%s" % (key, len(places), places)})
+
+    # duplicate bib keys
+    keys = {}
+    for p in bibfiles:
+        for key in BIB_RE.findall(read_text(p)):
+            keys[key] = keys.get(key, 0) + 1
+    for key, n in keys.items():
+        if n > 1:
+            issues.append({"file": ",".join(x.name for x in bibfiles), "line": 0,
+                           "severity": "error", "type": "duplicate_bib_key",
+                           "detail": "%s 出现 %d 次" % (key, n)})
+
+    # encoding / mojibake
+    for p in texfiles + bibfiles:
+        raw = p.read_bytes()
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            issues.append({"file": p.name, "line": 0, "severity": "error",
+                           "type": "encoding_not_utf8", "detail": "文件不是合法 UTF-8"})
+            continue
+        hit = [m for m in MOJIBAKE if m in text]
+        if hit:
+            issues.append({"file": p.name, "line": 0, "severity": "warning",
+                           "type": "mojibake_suspect",
+                           "detail": "疑似乱码字符：" + " ".join(hit)})
+
+    # unused labels (info)
+    for key in counts:
+        if key not in labels:
+            issues.append({"file": counts[key][0][0], "line": counts[key][0][1],
+                           "severity": "info", "type": "unused_label", "detail": key})
+    return issues
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -71,6 +122,7 @@ def main():
     for fname, img in images:
         if not any(Path(p).name == Path(img).name for p in files):
             issues.append({"file": fname, "line": 0, "severity": "warning", "type": "missing_figure", "detail": img})
+    issues = extra_checks(texfiles, bibfiles, labels, issues)
     b.set("issues", issues)
     b.set("compile_plan", ["pdflatex -interaction=nonstopmode main.tex", "bibtex main",
                            "pdflatex -interaction=nonstopmode main.tex", "pdflatex -interaction=nonstopmode main.tex"])

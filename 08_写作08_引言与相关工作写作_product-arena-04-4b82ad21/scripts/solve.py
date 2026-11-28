@@ -16,6 +16,54 @@ SENT = re.compile(r"(?<=[.!?。！？])\s+")
 AXES = ["转述准确率", "分组合理性", "空白推导成立率", "贡献—证据对齐率", "引用覆盖率", "成稿返工轮次"]
 
 
+PROBLEM = re.compile(r"\b(challenge|difficult|cost|degrade|bottleneck|expensive|limited)\b|难题|瓶颈|开销|受限", re.I)
+
+
+def build_outline(claims, gaps, contributions):
+    """Assemble a usable intro outline from extracted claims/gaps/contributions."""
+    def pick(rx, pool, limit):
+        out = []
+        for it in pool:
+            if rx.search(it["text"]):
+                out.append({"text": it["text"][:400], "citations": it.get("citations", []),
+                            "source_id": it.get("source_id", "")})
+            if len(out) >= limit:
+                break
+        return out
+
+    background = pick(re.compile(r"\b(has become|increasing|growing|widely|essential)\b|日益|广泛", re.I), claims, 3)
+    problem = pick(PROBLEM, claims, 3)
+    related = [{"text": it["text"][:300], "citations": it.get("citations", []),
+                "topic_terms": it.get("topic_terms", [])} for it in claims if it.get("citations")][:6]
+    method = pick(re.compile(r"\b(we propose|we present|this paper|we introduce)\b|本文提出|我们提出", re.I),
+                  claims, 3)
+    contrib = [{"text": it["text"][:300], "citations": it.get("citations", [])}
+               for it in contributions][:4]
+
+    outline = [
+        {"section": "1. 研究背景", "items": background},
+        {"section": "2. 问题与动机", "items": problem},
+        {"section": "3. 已有工作与空白", "items": related,
+         "gaps": [g["text"][:300] for g in gaps[:3]]},
+        {"section": "4. 本文方法", "items": method},
+        {"section": "5. 主要贡献", "items": contrib},
+    ]
+    md = []
+    for sec in outline:
+        md.append("### " + sec["section"])
+        for it in sec.get("items", []):
+            body = it["text"][:200]
+            cites = it.get("citations") or []
+            cite = "" if any(c in body for c in cites) else ((" " + " ".join(cites)) if cites else "")
+            md.append("- " + body + cite)
+        for g in sec.get("gaps", []):
+            md.append("- （空白候选）" + g[:160])
+        if not sec.get("items") and not sec.get("gaps"):
+            md.append("- （材料中未见，需作者补充，不得编造）")
+        md.append("")
+    return outline, "\n".join(md).strip()
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -43,6 +91,12 @@ def main():
             claims.append(item)
     for x in gaps[:60] + contributions[:30]:
         b.add_evidence(claim=x["text"][:160], locator=x["locator"], quote=x["text"][:300], source_id=x["source_id"])
+    outline, outline_md = build_outline(claims, gaps, contributions)
+    b.set("intro_outline", outline)
+    b.set("outline_markdown", outline_md)
+    b.set("outline_stats", {"sections": len(outline),
+                            "filled_sections": sum(1 for s in outline if s.get("items") or s.get("gaps")),
+                            "total_items": sum(len(s.get("items", [])) for s in outline)})
     b.set("claim_table", claims[:200])
     b.set("gap_candidates", gaps)
     b.set("contribution_candidates", contributions)

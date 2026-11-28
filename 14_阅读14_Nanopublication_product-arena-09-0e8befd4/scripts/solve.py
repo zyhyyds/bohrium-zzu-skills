@@ -15,6 +15,25 @@ SENT = re.compile(r"(?<=[.!?。！？])\s+")
 AXES = ["断言原子化粒度", "主体/关系方向准确率", "最小充分证据命中率", "来源元数据完整率", "导出可直接解析率", "人工拆分耗时"]
 
 
+CLAIM_VERB = re.compile(
+    r"\b(shows?|finds?|demonstrates?|reports?|observes?|proposes?|achieves?|improves?|"
+    r"reduces?|increases?|outperforms?|correlates?|suggests?|indicates?|confirms?)\b", re.I)
+QUALIFIER = re.compile(r"\b(?:on|in|under|for)\s+([^,.;]{3,60})", re.I)
+
+
+def to_spo(sentence):
+    """Split one atomic claim into subject / relation / object plus qualifier."""
+    s = " ".join(sentence.split()).rstrip(".")
+    m = CLAIM_VERB.search(s)
+    if not m:
+        return {"subject": "", "relation": "", "object": "", "qualifier": ""}
+    subj = s[:m.start()].strip(" ,;:")
+    obj = s[m.end():].strip(" ,;:")
+    qual = QUALIFIER.search(s)
+    return {"subject": subj[:160], "relation": m.group(1).lower(),
+            "object": obj[:200], "qualifier": (qual.group(0)[:120] if qual else "")}
+
+
 def main():
     args = common_args().parse_args()
     if args.validate:
@@ -38,21 +57,28 @@ def main():
             for a in atomic:
                 if len(a) < 15:
                     continue
+                spo = to_spo(a)
                 item = {"assertion_id": "A%03d" % (len(candidates) + 1), "text": a[:1200],
                         "source_id": src, "locator": locate(text, a) or {},
-                        "subject": "", "relation": "", "qualifier": "",
-                        "evidence_quote": "", "evidence_strength": "unverified",
-                        "status": "pending"}
+                        "subject": spo["subject"], "relation": spo["relation"],
+                        "object": spo["object"], "qualifier": spo["qualifier"],
+                        "evidence_quote": a[:400],
+                        "evidence_strength": "direct" if spo["relation"] else "unverified",
+                        "spo_complete": bool(spo["subject"] and spo["relation"] and spo["object"]),
+                        "status": "structured" if spo["relation"] else "pending"}
                 candidates.append(item)
                 b.add_evidence(claim=a[:160], locator=item["locator"], quote=a[:300], source_id=src, strength="candidate")
     b.set("assertion_candidates", candidates)
+    _with = sum(1 for c in candidates if c.get("spo_complete"))
+    b.set("spo_coverage", {"assertions": len(candidates), "with_spo": _with,
+                           "ratio": round(_with / len(candidates), 3) if candidates else 0.0})
     b.set("quality_rules", [
         "一条断言只表达一个可独立判真的命题，保留条件与限定范围。",
         "证据取最小充分片段，区分直接证据与间接推论。",
         "主体、关系方向、年份、版本、DOI 必须来自输入材料，不从常识补全。",
         "找不到支撑片段的断言保留并标 status=unsupported，不得删除或改写原文。"
     ])
-    b.set("export_schema", ["assertion_id", "text", "subject", "relation", "qualifier",
+    b.set("export_schema", ["assertion_id", "text", "subject", "relation", "object", "qualifier",
                             "source_id", "locator", "evidence_quote", "evidence_strength", "confidence_basis"])
     if not candidates:
         b.add_uncertainty("未从输入中切分出有效断言候选，需由 Agent 依据实际材料拆分。")
